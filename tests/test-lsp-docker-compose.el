@@ -1,5 +1,7 @@
 (require 'lsp-docker-compose)
 
+(setq python-indent-guess-indent-offset-verbose nil)
+
 (defmacro with-temp-project (project &rest body)
   (declare (indent 1))
   `(let* ((template-project-directory (f-expand (f-join "testing" ,project)))

@@ -60,7 +60,7 @@
    (f-read filename)
    :object-key-type 'string))
 
-(defun lsp-docker-compose-volumes (project struct)
+(defun lsp-docker-compose-volumes (struct)
   (let ((result (ht-create)))
     (-when-let (services (ht-get struct "services"))
       (seq-doseq (service (ht-items services))
@@ -68,29 +68,31 @@
               (service-def (cadr service)))
           (seq-doseq (volume (ht-get service-def "volumes"))
             (when (s-starts-with-p "." volume)
-              (let ((path (f-join project (car (s-split ":" volume)))))
-                (if (ht-contains? result path)
-                    (push service-name (ht-get result path))
-                  (ht-set! result path (list service-name)))))))))
+              (pcase-let ((`(,local ,remote) (s-split ":" volume)))
+                (if (ht-contains? result local)
+                    (ht-set! (ht-get result local) service-name remote)
+                  (ht-set! result local (ht (service-name remote))))))))))
     result))
 
-(defun lsp-docker-compose-services (volumes)
+(defun lsp-docker-compose-select-volume (project volumes)
   (let (paths)
     (seq-doseq (path (ht-keys volumes))
-      (when (or (f-same? path (buffer-file-name))
-                (f-ancestor-of? path (buffer-file-name)))
-        (push path paths)))
-    (let ((longest-path (--reduce (if (> (length acc) (length it)) acc it) paths)))
-      (ht-get volumes longest-path))))
+      (let ((local (f-join project path)))
+        (when (or (f-same? local (buffer-file-name)) ;; FIXME: Cover dired buffer in tests.
+                  (f-ancestor-of? local (buffer-file-name)))
+          (push path paths))))
+    (--reduce (if (> (length acc) (length it)) acc it) paths)))
 
 (defun lsp-docker-compose-select-service (services)
-  (if (null lsp-docker-compose-service-name)
-      (if (< 1 (length services))
-          (completing-read "Service: " services nil t)
-        (car services))
-    (if (-contains? services lsp-docker-compose-service-name)
-        lsp-docker-compose-service-name
-      (error "Unknown docker-compose service: %s" lsp-docker-compose-service-name))))
+  (let* ((names (ht-keys services))
+         (name (if (null lsp-docker-compose-service-name)
+                   (if (< 1 (length names))
+                       (completing-read "Service: " names nil t)
+                     (car names))
+                 (if (-contains? names lsp-docker-compose-service-name)
+                     lsp-docker-compose-service-name
+                   (error "Unknown docker-compose service: %s" lsp-docker-compose-service-name)))))
+    (list name (ht-get services name))))
 
 (defun lsp-docker-compose-containers (filename service)
   (--map
@@ -115,15 +117,17 @@
     (when project
       (let* ((filename (lsp-docker-compose-filename project))
              (struct (lsp-docker-compose-read-file filename))
-             (volumes (lsp-docker-compose-volumes project struct)))
+             (volumes (lsp-docker-compose-volumes struct)))
         (unless (ht-empty? volumes)
-          (let* ((services (lsp-docker-compose-services volumes))
-                 (service (lsp-docker-compose-select-service services)))
-            (when service
-              (let* ((containers (lsp-docker-compose-containers filename service))
-                     (container (lsp-docker-compose-select-container containers)))
-                (when container
-                  (list container local remote))))))))))
+          (let ((volume (lsp-docker-compose-select-volume project volumes)))
+            (when volume
+              (pcase-let* ((services (ht-get volumes volume))
+                           (`(,service ,remote) (lsp-docker-compose-select-service services)))
+                (when service
+                  (let* ((containers (lsp-docker-compose-containers filename service))
+                         (container (lsp-docker-compose-select-container containers)))
+                    (when container
+                      (list container (f-join project volume) remote))))))))))))
 
 (defun lsp-docker-compose-execute (container command)
   `("docker" "exec" "-i" ,container ,@command))
