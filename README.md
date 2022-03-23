@@ -16,14 +16,18 @@
 
 ## TESTS:
 
-* [ ] no docker-compose project
+* [x] no docker-compose project
 
-* [ ] no services volume contains current file
-* [ ] single service mount volume with current file
-* [ ] multiple services mount volume with current file
+* [x] no services volume contains current file
+* [x] single service mount volume with current file
+* [x] multiple services mount volume with current file
 
-* [ ] no containers running
-* [ ] single container running
-* [ ] multiple containers running (`docker-compose up --scale app=2`)
+* [x] no containers running
+* [x] single container running
+* [x] multiple containers running (`docker-compose up --scale app=2`)
 
 * [ ] `.dir-locals.el` should be able to define auto select for multiple options
+
+* [ ] nested paths (not only `.` in mounts)
+
+* [ ] `docker/compose.yml` project path

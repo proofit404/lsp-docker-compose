@@ -55,23 +55,25 @@
 (defun lsp-docker-compose-filename (project)
   (f-join project lsp-docker-compose-filename))
 
-(defun lsp-docker-compose-read-file (filename)
+(defun lsp-docker-compose-config (filename)
   (yaml-parse-string
-   (f-read filename)
+   (with-output-to-string
+     (with-current-buffer
+         standard-output
+       (call-process "docker-compose" nil t nil "--file" filename "config")))
    :object-key-type 'string))
 
-(defun lsp-docker-compose-volumes (struct)
+(defun lsp-docker-compose-volumes (config)
   (let ((result (ht-create)))
-    (-when-let (services (ht-get struct "services"))
+    (-when-let (services (ht-get config "services"))
       (seq-doseq (service (ht-items services))
         (let ((service-name (car service))
               (service-def (cadr service)))
           (seq-doseq (volume (ht-get service-def "volumes"))
-            (when (s-starts-with-p "." volume)
-              (pcase-let ((`(,local ,remote) (s-split ":" volume)))
-                (if (ht-contains? result local)
-                    (ht-set! (ht-get result local) service-name remote)
-                  (ht-set! result local (ht (service-name remote))))))))))
+            (pcase-let ((`(,local ,remote ,mode) (s-split ":" volume)))
+              (if (ht-contains? result local)
+                  (ht-set! (ht-get result local) service-name remote)
+                (ht-set! result local (ht (service-name remote)))))))))
     result))
 
 (defun lsp-docker-compose-select-volume (project volumes)
@@ -114,8 +116,8 @@
   (let ((project (lsp-docker-compose-project)))
     (when project
       (let* ((filename (lsp-docker-compose-filename project))
-             (struct (lsp-docker-compose-read-file filename))
-             (volumes (lsp-docker-compose-volumes struct)))
+             (config (lsp-docker-compose-config filename))
+             (volumes (lsp-docker-compose-volumes config)))
         (unless (ht-empty? volumes)
           (let ((volume (lsp-docker-compose-select-volume project volumes)))
             (when volume

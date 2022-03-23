@@ -1,0 +1,11 @@
+---
+version: "3.8"
+services:
+  app:
+    image: python
+    <<:  &v
+      volumes:
+        - .:/app
+  jobs:
+    image: python
+    <<: *v

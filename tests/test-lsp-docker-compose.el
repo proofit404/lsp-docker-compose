@@ -83,6 +83,15 @@
       (with-current-buffer (find-file-noselect "src/app.py")
         (shell-command "docker-compose up --scale app=3")
         (expect (lsp-docker-compose-current-container)
-                :to-equal `("f_app_1" ,project-directory "/app"))))))
+                :to-equal `("f_app_1" ,project-directory "/app")))))
+
+  (it "multiple services node anchors and references"
+    (with-temp-running-project "h"
+      (with-current-buffer (find-file-noselect "src/app.py")
+        (expect (let ((completing-read-function
+                       (lambda (prompt collection &rest _)
+                         (car (last collection)))))
+                  (lsp-docker-compose-current-container))
+                :to-equal `("h_jobs_1" ,project-directory "/app"))))))
 
 ;;; test-lsp-docker-compose.el ends here
