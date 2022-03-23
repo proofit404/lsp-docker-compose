@@ -26,7 +26,7 @@
 * [x] single container running
 * [x] multiple containers running (`docker-compose up --scale app=2`)
 
-* [ ] `.dir-locals.el` should be able to define auto select for multiple options
+* [x] `.dir-locals.el` should be able to define auto select for multiple options
 
 * [ ] nested paths (not only `.` in mounts)
 

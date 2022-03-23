@@ -98,6 +98,12 @@
     (with-temp-running-project "i"
       (with-current-buffer (find-file-noselect "src/app.py")
         (expect (lsp-docker-compose-current-container)
-                :to-equal `("i_jobs_1" ,project-directory "/app"))))))
+                :to-equal `("i_jobs_1" ,project-directory "/app")))))
+
+  (it "unknown service directory locals"
+    (with-temp-running-project "j"
+      (with-current-buffer (find-file-noselect "src/app.py")
+        (expect (lsp-docker-compose-current-container)
+                :to-throw)))))
 
 ;;; test-lsp-docker-compose.el ends here
