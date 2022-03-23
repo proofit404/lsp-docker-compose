@@ -84,7 +84,7 @@
     (--reduce (if (> (length acc) (length it)) acc it) paths)))
 
 (defun lsp-docker-compose-select-service (services)
-  (let* ((names (ht-keys services))
+  (let* ((names (-sort 's-less? (ht-keys services)))
          (name (if (null lsp-docker-compose-service-name)
                    (if (< 1 (length names))
                        (completing-read "Service: " names nil t)

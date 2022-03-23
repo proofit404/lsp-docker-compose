@@ -63,10 +63,19 @@
         (expect (lsp-docker-compose-current-container)
                 :to-be nil))))
 
-  (it "single service has single volume"
+  (it "single service"
     (with-temp-running-project "f"
       (with-current-buffer (find-file-noselect "src/app.py")
         (expect (lsp-docker-compose-current-container)
-                :to-equal `("f_app_1" ,project-directory "/app"))))))
+                :to-equal `("f_app_1" ,project-directory "/app")))))
+
+  (it "multiple services"
+    (with-temp-running-project "g"
+      (with-current-buffer (find-file-noselect "src/app.py")
+        (expect (let ((completing-read-function
+                       (lambda (prompt collection &rest _)
+                         (car (last collection)))))
+                  (lsp-docker-compose-current-container))
+                :to-equal `("g_jobs_1" ,project-directory "/app"))))))
 
 ;;; test-lsp-docker-compose.el ends here
