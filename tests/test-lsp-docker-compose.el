@@ -76,6 +76,13 @@
                        (lambda (prompt collection &rest _)
                          (car (last collection)))))
                   (lsp-docker-compose-current-container))
-                :to-equal `("g_jobs_1" ,project-directory "/app"))))))
+                :to-equal `("g_jobs_1" ,project-directory "/app")))))
+
+  (it "single scaled service"
+    (with-temp-running-project "f"
+      (with-current-buffer (find-file-noselect "src/app.py")
+        (shell-command "docker-compose up --scale app=3")
+        (expect (lsp-docker-compose-current-container)
+                :to-equal `("f_app_1" ,project-directory "/app"))))))
 
 ;;; test-lsp-docker-compose.el ends here

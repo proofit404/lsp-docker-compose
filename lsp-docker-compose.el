@@ -108,9 +108,7 @@
     2)))
 
 (defun lsp-docker-compose-select-container (containers)
-  (if (< 1 (length containers))
-      (completing-read "Container: " containers nil t)
-    (car containers)))
+  (car containers))
 
 (defun lsp-docker-compose-current-container ()
   (let ((project (lsp-docker-compose-project)))
