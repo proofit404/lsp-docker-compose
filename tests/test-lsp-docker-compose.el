@@ -92,6 +92,12 @@
                        (lambda (prompt collection &rest _)
                          (car (last collection)))))
                   (lsp-docker-compose-current-container))
-                :to-equal `("h_jobs_1" ,project-directory "/app"))))))
+                :to-equal `("h_jobs_1" ,project-directory "/app")))))
+
+  (it "multiple services directory locals"
+    (with-temp-running-project "i"
+      (with-current-buffer (find-file-noselect "src/app.py")
+        (expect (lsp-docker-compose-current-container)
+                :to-equal `("i_jobs_1" ,project-directory "/app"))))))
 
 ;;; test-lsp-docker-compose.el ends here
