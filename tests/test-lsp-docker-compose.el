@@ -104,6 +104,12 @@
     (with-temp-running-project "j"
       (with-current-buffer (find-file-noselect "src/app.py")
         (expect (lsp-docker-compose-current-container)
-                :to-throw)))))
+                :to-throw))))
+
+  (it "multiple project files"
+    (with-temp-running-project "k"
+      (with-current-buffer (find-file-noselect "src/app.py")
+        (expect (lsp-docker-compose-current-container)
+                :to-equal `("k_jobs_1" ,project-directory "/app"))))))
 
 ;;; test-lsp-docker-compose.el ends here

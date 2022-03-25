@@ -37,10 +37,10 @@
   "LSP support for docker-compose projects."
   :group 'lsp)
 
-(defcustom lsp-docker-compose-filename "docker-compose.yml"
+(defcustom lsp-docker-compose-files '("docker-compose.yml")
   "File name of the docker-compose project file."
-  :type 'string
-  :safe 'stringp)
+  :type '(repeat string)
+  :safe (-andfn #'listp (-partial #'-all? #'stringp)))
 
 (defcustom lsp-docker-compose-service-name nil
   "Default service name defined in the docker-compose project file."
@@ -48,19 +48,19 @@
   :safe 'stringp)
 
 (defun lsp-docker-compose-project ()
-  (let ((project (locate-dominating-file default-directory lsp-docker-compose-filename)))
+  (let ((project (locate-dominating-file default-directory (car lsp-docker-compose-files))))
     (when project
       (f-full project))))
 
-(defun lsp-docker-compose-filename (project)
-  (f-join project lsp-docker-compose-filename))
+(defun lsp-docker-compose-filenames (project)
+  (-map (-partial #'f-join project) lsp-docker-compose-files))
 
-(defun lsp-docker-compose-config (filename)
+(defun lsp-docker-compose-config (files)
   (yaml-parse-string
    (with-output-to-string
      (with-current-buffer
          standard-output
-       (call-process "docker-compose" nil t nil "--file" filename "config")))
+       (apply #'call-process "docker-compose" nil t nil (-flatten (-concat (-zip-lists (-cycle '("--file")) files) '("config"))))))
    :object-key-type 'string))
 
 (defun lsp-docker-compose-volumes (config)
@@ -96,7 +96,7 @@
                    (error "Unknown docker-compose service: %s" lsp-docker-compose-service-name)))))
     (list name (ht-get services name))))
 
-(defun lsp-docker-compose-containers (filename service)
+(defun lsp-docker-compose-containers (files service)
   (--map
    (car (s-split-up-to " " it 1))
    (-slice
@@ -106,7 +106,7 @@
       (with-output-to-string
         (with-current-buffer
             standard-output
-          (call-process "docker-compose" nil t nil "--file" filename "ps" service)))))
+          (apply #'call-process "docker-compose" nil t nil (-flatten (-concat (-zip-lists (-cycle '("--file")) files) (list "ps" service))))))))
     2)))
 
 (defun lsp-docker-compose-select-container (containers)
@@ -115,8 +115,8 @@
 (defun lsp-docker-compose-current-container ()
   (let ((project (lsp-docker-compose-project)))
     (when project
-      (let* ((filename (lsp-docker-compose-filename project))
-             (config (lsp-docker-compose-config filename))
+      (let* ((files (lsp-docker-compose-filenames project))
+             (config (lsp-docker-compose-config files))
              (volumes (lsp-docker-compose-volumes config)))
         (unless (ht-empty? volumes)
           (let ((volume (lsp-docker-compose-select-volume project volumes)))
@@ -124,7 +124,7 @@
               (pcase-let* ((services (ht-get volumes volume))
                            (`(,service ,remote) (lsp-docker-compose-select-service services)))
                 (when service
-                  (let* ((containers (lsp-docker-compose-containers filename service))
+                  (let* ((containers (lsp-docker-compose-containers files service))
                          (container (lsp-docker-compose-select-container containers)))
                     (when container
                       (list container (f-join project volume) remote))))))))))))
