@@ -18,3 +18,4 @@
 
 * nested paths (not only `.` in mounts)
 * safep custom settings
+* docker-compose in absent on machine

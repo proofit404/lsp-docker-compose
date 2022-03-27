@@ -1,4 +1,4 @@
-;; lsp-docker-compose.el --- LSP docker-compose projects support.
+;; lsp-docker-compose.el --- LSP docker-compose projects support.  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022 by Artem Malyshev
 
@@ -129,36 +129,66 @@
                     (when container
                       (list container (f-join project volume) remote))))))))))))
 
+(defun lsp-docker-compose-uri-to-path (container local remote uri)
+  (let ((path (lsp--uri-to-path-1 uri)))
+    (if (s-contains? remote path)
+        (s-replace remote local path)
+      (format "/docker:%s:%s" container path))))
+
+(defun lsp-docker-compose-path-to-uri (local remote path)
+  (lsp--path-to-uri-1
+   (if (s-contains? local path)
+       (s-replace local remote path)
+     (user-error "The path %s is not under %s" path local))))
+
+(defmacro lsp-docker-compose-activation-function (project-directory)
+  `(lambda (&rest unused)
+     (let ((current-project-root (lsp-workspace-root))
+           (registered-project-root ,project-directory))
+       (f-same? current-project-root registered-project-root))))
+
 (defun lsp-docker-compose-execute (container command)
   `("docker" "exec" "-i" ,container ,@command))
 
-(defun lsp-docker-compose-register (local-client container local-path remote-path)
-  (let ((client (copy-lsp--client local-client)))
-    (setf (lsp--client-server-id client) (intern (concat (symbol-name (lsp--client-server-id client)) "-docker-compose"))
-          (lsp--client-uri->path-fn client) (-partial #'lsp-docker--uri->path path-mappings docker-container-name-full)
-          (lsp--client-path->uri-fn client) (-partial #'lsp-docker--path->uri path-mappings)
-          (lsp--client-activation-fn client) (lsp-docker-create-activation-function-by-project-dir (lsp-workspace-root))
+(defun lsp-docker-compose-register (local-client container local remote)
+  (let* ((client (copy-lsp--client local-client))
+         (server-id (intern (concat (symbol-name (lsp--client-server-id client)) "-" (s-replace "_" "-" container))))
+         (saved-command (plist-get (lsp--client-new-connection client) :saved-command))
+         (command (cond
+                   ((functionp saved-command) (funcall saved-command))
+                   ((stringp saved-command) (list saved-command))
+                   ((listp saved-command) saved-command))))
+    (setf (lsp--client-server-id client) server-id
+          (lsp--client-uri->path-fn client) (-partial #'lsp-docker-compose-uri-to-path container local remote)
+          (lsp--client-path->uri-fn client) (-partial #'lsp-docker-compose-path-to-uri local remote)
+          (lsp--client-activation-fn client) (lambda (&rest unused)
+                                               t)
           (lsp--client-new-connection client) (plist-put
                                                (lsp-stdio-connection
                                                 (lambda ()
-                                                  (funcall #'lsp-docker-launch-existing-container
-                                                           docker-container-name-full
-                                                           path-mappings
-                                                           docker-image-id
-                                                           server-command)))
+                                                  (lsp-docker-compose-execute container command)))
                                                :test? (lambda (&rest _) t))
-          (lsp--client-priority client) (or priority (lsp--client-priority client)))
+          (lsp--client-priority client) (1+ (lsp--client-priority client)))
     (lsp-register-client client)
-    (message "Registered a language server with id: %s and container name: %s" docker-server-id docker-container-name-full)))
+    (add-to-list 'lsp-enabled-clients server-id)
+    (message "Registered a language server with id: %s and container name: %s" server-id container)))
 
 (defun lsp-docker-compose ()
+  (lsp--require-packages)
   (if lsp-mode
       (error "docker-compose processing should happen before lsp-mode")
-    (unless (lsp-workspace-root)
-      (pcase-let ((`(,container ,local ,remote) (lsp-docker-compose-current-container)))
-        (destructuring
-         (dolist (client (lsp--filter-clients #'lsp--supports-buffer?))
-           (lsp-docker-compose-register client container local remote)))))))
+    (pcase-let ((`(,container ,local ,remote) (lsp-docker-compose-current-container)))
+      (dolist (client (lsp--filter-clients #'lsp--supports-buffer?))
+        (lsp-docker-compose-register client container local remote)))))
+
+(defun lsp-docker-compose-hack-stdio-connection (f &rest args)
+  (plist-put
+   (apply f args)
+   :saved-command (car args)))
+
+(advice-add
+ 'lsp-stdio-connection
+ :around #'lsp-docker-compose-hack-stdio-connection)
 
 (provide 'lsp-docker-compose)
 
