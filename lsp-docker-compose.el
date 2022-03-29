@@ -131,14 +131,14 @@
 
 (defun lsp-docker-compose-uri-to-path (container local remote uri)
   (let ((path (lsp--uri-to-path-1 uri)))
-    (if (s-contains? remote path)
-        (s-replace remote local path)
+    (if (f-ancestor-of? remote path)
+        (f-expand (f-relative path remote) local)
       (format "/docker:%s:%s" container path))))
 
 (defun lsp-docker-compose-path-to-uri (local remote path)
   (lsp--path-to-uri-1
-   (if (s-contains? local path)
-       (s-replace local remote path)
+   (if (f-ancestor-of? local path)
+       (f-expand (f-relative path local) remote)
      (user-error "The path %s is not under %s" path local))))
 
 (defmacro lsp-docker-compose-activation-function (project-directory)

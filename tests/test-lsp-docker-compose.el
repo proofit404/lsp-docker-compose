@@ -112,4 +112,22 @@
         (expect (lsp-docker-compose-current-container)
                 :to-equal `("k_jobs_1" ,project-directory "/app"))))))
 
+(describe "uri to path"
+  (it "remote to local"
+    (expect (lsp-docker-compose-uri-to-path "f_app_1" "/home/coder/f" "/app" "file:///app/src/app.py")
+            :to-equal "/home/coder/f/src/app.py"))
+
+  (it "not matched"
+    (expect (lsp-docker-compose-uri-to-path "f_app_1" "/home/coder/f" "/app" "file:///venv/lib/code.py")
+            :to-equal "/docker:f_app_1:/venv/lib/code.py")))
+
+(describe "path to uri"
+  (it "local to remote"
+    (expect (lsp-docker-compose-path-to-uri "/home/coder/f" "/app" "/home/coder/f/src/app.py")
+            :to-equal "file:///app/src/app.py"))
+
+  (it "not matched"
+    (expect (lsp-docker-compose-path-to-uri "/home/coder/f" "/app" "/home/coder/g/src/app.py")
+            :to-throw)))
+
 ;;; test-lsp-docker-compose.el ends here
