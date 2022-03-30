@@ -16,15 +16,16 @@
 (defmacro with-temp-running-project (project &rest body)
   (declare (indent 1))
   `(with-temp-project ,project
-     (unwind-protect
-         (progn
-           (shell-command "docker-compose up -d")
-           ,@body)
-       (shell-command "docker-compose down")
-       (shell-command "docker-compose container prune -f")
-       (shell-command "docker-compose volume prune -f")
-       (shell-command "docker-compose network prune -f")
-       (shell-command "docker-compose image prune -f"))))
+     (let ((compose-arg (s-join " " (-flatten (-zip-lists (-cycle '("-f")) (f-glob "docker-compose*.yml"))))))
+       (unwind-protect
+           (progn
+             (shell-command (format "docker-compose %s up -d" compose-arg))
+             ,@body)
+         (shell-command (format "docker-compose %s down" compose-arg))
+         (shell-command (format "docker-compose %s container prune -f" compose-arg))
+         (shell-command (format "docker-compose %s volume prune -f" compose-arg))
+         (shell-command (format "docker-compose %s network prune -f" compose-arg))
+         (shell-command (format "docker-compose %s image prune -f" compose-arg))))))
 
 (describe "docker-compose project"
   (it "is missed"
@@ -109,7 +110,10 @@
   (it "multiple project files"
     (with-temp-running-project "k"
       (with-current-buffer (find-file-noselect "src/app.py")
-        (expect (lsp-docker-compose-current-container)
+        (expect (let ((completing-read-function
+                       (lambda (prompt collection &rest _)
+                         (car (last collection)))))
+                  (lsp-docker-compose-current-container))
                 :to-equal `("k_jobs_1" ,project-directory "/app"))))))
 
 (describe "uri to path"
