@@ -1,3 +1,5 @@
+(require 'lsp-pylsp)
+
 (require 'lsp-docker-compose)
 
 (setq python-indent-guess-indent-offset-verbose nil
@@ -116,6 +118,12 @@
                          (car (last collection)))))
                   (lsp-docker-compose-current-container))
                 :to-equal `("k_jobs_1" ,project-directory "/app"))))))
+
+(describe "server id"
+  (it "made of container and volume names"
+    (let* ((client (ht-get lsp-clients 'pylsp)))
+      (expect (symbol-name (lsp-docker-compose-server-id client "/home/coder/f"))
+              :to-equal "pylsp-docker-compose-home-coder-f"))))
 
 (describe "uri to path"
   (it "remote to local"

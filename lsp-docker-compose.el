@@ -129,6 +129,13 @@
                     (when container
                       (list container (f-join project volume) remote))))))))))))
 
+(defun lsp-docker-compose-server-id (client local)
+  (intern
+   (concat
+    (symbol-name (lsp--client-server-id client))
+    "-docker-compose"
+    (s-replace "/" "-" local))))
+
 (defun lsp-docker-compose-uri-to-path (container local remote)
   (lambda (uri)
     (let ((path (lsp--uri-to-path-1 uri)))
@@ -153,13 +160,12 @@
 
 (defun lsp-docker-compose-register (local-client container local remote)
   (let* ((client (copy-lsp--client local-client))
-         (server-id (intern (concat (symbol-name (lsp--client-server-id client)) "-" (s-replace "_" "-" container))))
          (saved-command (plist-get (lsp--client-new-connection client) :saved-command))
          (command (cond
                    ((functionp saved-command) (funcall saved-command))
                    ((stringp saved-command) (list saved-command))
                    ((listp saved-command) saved-command))))
-    (setf (lsp--client-server-id client) server-id
+    (setf (lsp--client-server-id client) (lsp-docker-compose-server-id client local)
           (lsp--client-uri->path-fn client) (lsp-docker-compose-uri-to-path container local remote)
           (lsp--client-path->uri-fn client) (lsp-docker-compose-path-to-uri local remote)
           (lsp--client-activation-fn client) (lsp-docker-compose-activate-on local)
@@ -170,7 +176,7 @@
                                                :test? (lambda (&rest _) t))
           (lsp--client-priority client) (1+ (lsp--client-priority client)))
     (lsp-register-client client)
-    (add-to-list 'lsp-enabled-clients server-id)
+    (add-to-list 'lsp-enabled-clients (lsp--client-server-id client))
     (message "Registered a language server with id: %s and container name: %s" server-id container)))
 
 (defun lsp-docker-compose ()

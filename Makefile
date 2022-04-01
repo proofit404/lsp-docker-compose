@@ -1,2 +1,2 @@
 test:
-	emacs -batch -f package-initialize -L . -f buttercup-run-discover
+	emacs -Q -batch -f package-initialize -L . -f buttercup-run-discover
