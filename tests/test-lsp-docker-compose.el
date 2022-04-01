@@ -164,9 +164,15 @@
                     :to-be nil)))))))
 
 (describe "stdio connection"
-  (it "copy client command"
+  (it "copy source client command"
     (let ((client (ht-get lsp-clients 'pylsp)))
       (expect (lsp-docker-compose-execute "f_app_1" client)
               :to-equal '("docker" "exec" "-i" "f_app_1" "pylsp")))))
+
+(describe "priority"
+  (it "greater than source client"
+    (let ((client (ht-get lsp-clients 'pylsp)))
+      (expect (lsp-docker-compose-priority client)
+              :to-equal 9))))
 
 ;;; test-lsp-docker-compose.el ends here

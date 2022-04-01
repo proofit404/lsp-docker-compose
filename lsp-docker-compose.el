@@ -160,8 +160,11 @@
                   (plist-get (lsp--client-new-connection client) :saved-command))))
     (if command
         `("docker" "exec" "-i" ,container ,@command)
-      (error "Unable to understand stdio command of %s server"
+      (error "Unable to understand stdio command of %s server" ;; FIXME: Cover tcp client.
              (lsp--client-server-id client)))))
+
+(defun lsp-docker-compose-priority (client)
+  (+ 10 (lsp--client-priority client)))
 
 (defun lsp-docker-compose-register (local-client container local remote)
   (let ((client (copy-lsp--client local-client)))
@@ -170,7 +173,7 @@
           (lsp--client-path->uri-fn client) (lsp-docker-compose-path-to-uri local remote)
           (lsp--client-activation-fn client) (lsp-docker-compose-activate-on local)
           (lsp--client-new-connection client) (lsp-stdio-connection (lsp-docker-compose-execute container client))
-          (lsp--client-priority client) (1+ (lsp--client-priority client)))
+          (lsp--client-priority client) (lsp-docker-compose-priority client))
     (lsp-register-client client)
     (add-to-list 'lsp-enabled-clients (lsp--client-server-id client))
     (message "Registered a language server with id: %s and container name: %s" server-id container)))
