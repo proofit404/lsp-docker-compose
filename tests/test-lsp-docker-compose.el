@@ -20,13 +20,13 @@
      (let ((compose-arg (s-join " " (-flatten (-zip-lists (-cycle '("-f")) (f-glob "docker-compose*.yml"))))))
        (unwind-protect
            (progn
-             (shell-command (format "docker-compose %s up -d" compose-arg))
+             (call-process-shell-command (format "docker-compose %s up -d" compose-arg))
              ,@body)
-         (shell-command (format "docker-compose %s down" compose-arg))
-         (shell-command (format "docker-compose %s container prune -f" compose-arg))
-         (shell-command (format "docker-compose %s volume prune -f" compose-arg))
-         (shell-command (format "docker-compose %s network prune -f" compose-arg))
-         (shell-command (format "docker-compose %s image prune -f" compose-arg))))))
+         (call-process-shell-command (format "docker-compose %s down" compose-arg))
+         (call-process-shell-command "docker container prune -f")
+         (call-process-shell-command "docker volume prune -f")
+         (call-process-shell-command "docker network prune -f")
+         (call-process-shell-command "docker image prune -f")))))
 
 (describe "docker-compose project"
   (it "is missed"
@@ -83,7 +83,7 @@
   (it "single scaled service"
     (with-temp-running-project "f"
       (with-current-buffer (find-file-noselect "src/app.py")
-        (shell-command "docker-compose up --scale app=3")
+        (call-process-shell-command "docker-compose up --scale app=3")
         (expect (lsp-docker-compose-current-container)
                 :to-equal `("f_app_1" ,project-directory "/app")))))
 
