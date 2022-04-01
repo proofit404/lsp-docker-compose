@@ -129,7 +129,7 @@
                     (when container
                       (list container (f-join project volume) remote))))))))))))
 
-(defun lsp-docker-compose-server-id (client local)
+(defun lsp-docker-compose-server-id (local client)
   (intern
    (concat
     (symbol-name (lsp--client-server-id client))
@@ -148,32 +148,28 @@
     (lsp--path-to-uri-1
      (if (f-ancestor-of? local path)
          (f-expand (f-relative path local) remote)
-       (user-error "The path %s is not under %s" path local)))))
+       (error "The path %s is not under %s" path local)))))
 
 (defun lsp-docker-compose-activate-on (local)
   (lambda (filename _mode)
     (or (f-same? local filename) ;; FIXME: Cover dired buffer in tests.
         (f-ancestor-of? local filename))))
 
-(defun lsp-docker-compose-execute (container command)
-  `("docker" "exec" "-i" ,container ,@command))
+(defun lsp-docker-compose-execute (container client)
+  (let ((command (lsp-resolve-final-function
+                  (plist-get (lsp--client-new-connection client) :saved-command))))
+    (if command
+        `("docker" "exec" "-i" ,container ,@command)
+      (error "Unable to understand stdio command of %s server"
+             (lsp--client-server-id client)))))
 
 (defun lsp-docker-compose-register (local-client container local remote)
-  (let* ((client (copy-lsp--client local-client))
-         (saved-command (plist-get (lsp--client-new-connection client) :saved-command))
-         (command (cond
-                   ((functionp saved-command) (funcall saved-command))
-                   ((stringp saved-command) (list saved-command))
-                   ((listp saved-command) saved-command))))
-    (setf (lsp--client-server-id client) (lsp-docker-compose-server-id client local)
+  (let ((client (copy-lsp--client local-client)))
+    (setf (lsp--client-server-id client) (lsp-docker-compose-server-id local client)
           (lsp--client-uri->path-fn client) (lsp-docker-compose-uri-to-path container local remote)
           (lsp--client-path->uri-fn client) (lsp-docker-compose-path-to-uri local remote)
           (lsp--client-activation-fn client) (lsp-docker-compose-activate-on local)
-          (lsp--client-new-connection client) (plist-put
-                                               (lsp-stdio-connection
-                                                (lambda ()
-                                                  (lsp-docker-compose-execute container command)))
-                                               :test? (lambda (&rest _) t))
+          (lsp--client-new-connection client) (lsp-stdio-connection (lsp-docker-compose-execute container client))
           (lsp--client-priority client) (1+ (lsp--client-priority client)))
     (lsp-register-client client)
     (add-to-list 'lsp-enabled-clients (lsp--client-server-id client))

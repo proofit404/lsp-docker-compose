@@ -1,6 +1,6 @@
-(require 'lsp-pylsp)
-
 (require 'lsp-docker-compose)
+
+(require 'lsp-pylsp)
 
 (setq python-indent-guess-indent-offset-verbose nil
       this-project (f-dirname (f-dirname (f-this-file))))
@@ -121,8 +121,8 @@
 
 (describe "server id"
   (it "made of container and volume names"
-    (let* ((client (ht-get lsp-clients 'pylsp)))
-      (expect (symbol-name (lsp-docker-compose-server-id client "/home/coder/f"))
+    (let ((client (ht-get lsp-clients 'pylsp)))
+      (expect (symbol-name (lsp-docker-compose-server-id "/home/coder/f" client))
               :to-equal "pylsp-docker-compose-home-coder-f"))))
 
 (describe "uri to path"
@@ -162,5 +162,11 @@
           (with-current-buffer (find-file-noselect "src/app.py")
             (expect (funcall f (buffer-file-name) major-mode)
                     :to-be nil)))))))
+
+(describe "stdio connection"
+  (it "copy client command"
+    (let ((client (ht-get lsp-clients 'pylsp)))
+      (expect (lsp-docker-compose-execute "f_app_1" client)
+              :to-equal '("docker" "exec" "-i" "f_app_1" "pylsp")))))
 
 ;;; test-lsp-docker-compose.el ends here
