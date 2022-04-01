@@ -1,10 +1,11 @@
 (require 'lsp-docker-compose)
 
-(setq python-indent-guess-indent-offset-verbose nil)
+(setq python-indent-guess-indent-offset-verbose nil
+      this-project (f-dirname (f-dirname (f-this-file))))
 
 (defmacro with-temp-project (project &rest body)
   (declare (indent 1))
-  `(let* ((template-project-directory (f-expand (f-join "testing" ,project)))
+  `(let* ((template-project-directory (f-expand (f-join this-project "testing" ,project)))
           (temp-directory (make-temp-file "lsp-docker-compose" t))
           (project-directory (f-join temp-directory ,project)))
      (unwind-protect
@@ -133,5 +134,21 @@
   (it "not matched"
     (expect (lsp-docker-compose-path-to-uri "/home/coder/f" "/app" "/home/coder/g/src/app.py")
             :to-throw)))
+
+(describe "activation function"
+  (it "inside volume"
+    (with-temp-project "f"
+      (let ((f (lsp-docker-compose-activate-on project-directory)))
+        (with-current-buffer (find-file-noselect "src/app.py")
+          (expect (funcall f (buffer-file-name) major-mode)
+                  :to-be t)))))
+
+  (it "outside volume"
+    (with-temp-project "f"
+      (let ((f (lsp-docker-compose-activate-on project-directory)))
+        (with-temp-project "g"
+          (with-current-buffer (find-file-noselect "src/app.py")
+            (expect (funcall f (buffer-file-name) major-mode)
+                    :to-be nil)))))))
 
 ;;; test-lsp-docker-compose.el ends here

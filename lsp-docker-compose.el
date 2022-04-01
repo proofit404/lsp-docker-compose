@@ -141,11 +141,10 @@
        (f-expand (f-relative path local) remote)
      (user-error "The path %s is not under %s" path local))))
 
-(defmacro lsp-docker-compose-activation-function (project-directory)
-  `(lambda (&rest unused)
-     (let ((current-project-root (lsp-workspace-root))
-           (registered-project-root ,project-directory))
-       (f-same? current-project-root registered-project-root))))
+(defun lsp-docker-compose-activate-on (local)
+  (lambda (filename _mode)
+    (or (f-same? local filename) ;; FIXME: Cover dired buffer in tests.
+        (f-ancestor-of? local filename))))
 
 (defun lsp-docker-compose-execute (container command)
   `("docker" "exec" "-i" ,container ,@command))
@@ -161,8 +160,7 @@
     (setf (lsp--client-server-id client) server-id
           (lsp--client-uri->path-fn client) (-partial #'lsp-docker-compose-uri-to-path container local remote)
           (lsp--client-path->uri-fn client) (-partial #'lsp-docker-compose-path-to-uri local remote)
-          (lsp--client-activation-fn client) (lambda (&rest unused)
-                                               t)
+          (lsp--client-activation-fn client) (lsp-docker-compose-activate-on local)
           (lsp--client-new-connection client) (plist-put
                                                (lsp-stdio-connection
                                                 (lambda ()
