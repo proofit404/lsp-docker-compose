@@ -119,21 +119,25 @@
 
 (describe "uri to path"
   (it "remote to local"
-    (expect (lsp-docker-compose-uri-to-path "f_app_1" "/home/coder/f" "/app" "file:///app/src/app.py")
-            :to-equal "/home/coder/f/src/app.py"))
+    (let ((f (lsp-docker-compose-uri-to-path "f_app_1" "/home/coder/f" "/app")))
+      (expect (funcall f "file:///app/src/app.py")
+              :to-equal "/home/coder/f/src/app.py")))
 
   (it "not matched"
-    (expect (lsp-docker-compose-uri-to-path "f_app_1" "/home/coder/f" "/app" "file:///venv/lib/code.py")
-            :to-equal "/docker:f_app_1:/venv/lib/code.py")))
+    (let ((f (lsp-docker-compose-uri-to-path "f_app_1" "/home/coder/f" "/app")))
+      (expect (funcall f "file:///venv/lib/code.py")
+              :to-equal "/docker:f_app_1:/venv/lib/code.py"))))
 
 (describe "path to uri"
   (it "local to remote"
-    (expect (lsp-docker-compose-path-to-uri "/home/coder/f" "/app" "/home/coder/f/src/app.py")
-            :to-equal "file:///app/src/app.py"))
+    (let ((f (lsp-docker-compose-path-to-uri "/home/coder/f" "/app")))
+      (expect (funcall f "/home/coder/f/src/app.py")
+              :to-equal "file:///app/src/app.py")))
 
   (it "not matched"
-    (expect (lsp-docker-compose-path-to-uri "/home/coder/f" "/app" "/home/coder/g/src/app.py")
-            :to-throw)))
+    (let ((f (lsp-docker-compose-path-to-uri "/home/coder/f" "/app")))
+      (expect (funcall f "/home/coder/g/src/app.py")
+              :to-throw))))
 
 (describe "activation function"
   (it "inside volume"

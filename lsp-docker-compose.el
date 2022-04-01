@@ -129,17 +129,19 @@
                     (when container
                       (list container (f-join project volume) remote))))))))))))
 
-(defun lsp-docker-compose-uri-to-path (container local remote uri)
-  (let ((path (lsp--uri-to-path-1 uri)))
-    (if (f-ancestor-of? remote path)
-        (f-expand (f-relative path remote) local)
-      (format "/docker:%s:%s" container path))))
+(defun lsp-docker-compose-uri-to-path (container local remote)
+  (lambda (uri)
+    (let ((path (lsp--uri-to-path-1 uri)))
+      (if (f-ancestor-of? remote path)
+          (f-expand (f-relative path remote) local)
+        (format "/docker:%s:%s" container path)))))
 
-(defun lsp-docker-compose-path-to-uri (local remote path)
-  (lsp--path-to-uri-1
-   (if (f-ancestor-of? local path)
-       (f-expand (f-relative path local) remote)
-     (user-error "The path %s is not under %s" path local))))
+(defun lsp-docker-compose-path-to-uri (local remote)
+  (lambda (path)
+    (lsp--path-to-uri-1
+     (if (f-ancestor-of? local path)
+         (f-expand (f-relative path local) remote)
+       (user-error "The path %s is not under %s" path local)))))
 
 (defun lsp-docker-compose-activate-on (local)
   (lambda (filename _mode)
@@ -158,8 +160,8 @@
                    ((stringp saved-command) (list saved-command))
                    ((listp saved-command) saved-command))))
     (setf (lsp--client-server-id client) server-id
-          (lsp--client-uri->path-fn client) (-partial #'lsp-docker-compose-uri-to-path container local remote)
-          (lsp--client-path->uri-fn client) (-partial #'lsp-docker-compose-path-to-uri local remote)
+          (lsp--client-uri->path-fn client) (lsp-docker-compose-uri-to-path container local remote)
+          (lsp--client-path->uri-fn client) (lsp-docker-compose-path-to-uri local remote)
           (lsp--client-activation-fn client) (lsp-docker-compose-activate-on local)
           (lsp--client-new-connection client) (plist-put
                                                (lsp-stdio-connection
