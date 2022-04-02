@@ -139,14 +139,16 @@
 (defun lsp-docker-compose-uri-to-path (container local remote)
   (lambda (uri)
     (let ((path (lsp--uri-to-path-1 uri)))
-      (if (f-ancestor-of? remote path)
+      (if (or (f-same? remote path)
+              (f-ancestor-of? remote path))
           (f-expand (f-relative path remote) local)
         (format "/docker:%s:%s" container path)))))
 
 (defun lsp-docker-compose-path-to-uri (local remote)
   (lambda (path)
     (lsp--path-to-uri-1
-     (if (f-ancestor-of? local path)
+     (if (or (f-same? local path)
+             (f-ancestor-of? local path))
          (f-expand (f-relative path local) remote)
        (error "The path %s is not under %s" path local)))))
 
@@ -175,8 +177,12 @@
           (lsp--client-new-connection client) (lsp-stdio-connection (lsp-docker-compose-execute container client))
           (lsp--client-priority client) (lsp-docker-compose-priority client))
     (lsp-register-client client)
-    (add-to-list 'lsp-enabled-clients (lsp--client-server-id client))
-    (message "Registered a language server with id: %s and container name: %s" server-id container)))
+    (when lsp-enabled-clients
+      (push (lsp--client-server-id client) lsp-enabled-clients))
+    (message
+     "Registered a language server %s inside %s container"
+     (lsp--client-server-id client)
+     container)))
 
 (defun lsp-docker-compose ()
   (lsp--require-packages)
