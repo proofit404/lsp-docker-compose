@@ -47,6 +47,8 @@
   :type 'string
   :safe 'stringp)
 
+(defvar lsp-docker-compose-registry nil)
+
 (defun lsp-docker-compose-project ()
   (let ((project (locate-dominating-file default-directory (car lsp-docker-compose-files))))
     (when project
@@ -179,18 +181,30 @@
     (lsp-register-client client)
     (when lsp-enabled-clients
       (push (lsp--client-server-id client) lsp-enabled-clients))
+    (push (cons local (lsp--client-major-modes client)) lsp-docker-compose-registry)
     (message
      "Registered a language server %s inside %s container"
      (lsp--client-server-id client)
      container)))
 
+(defun lsp-docker-compose-is-registered ()
+  (--any?
+   (let ((local (car it))
+         (modes (cdr it)))
+     (and (or (f-same? local (buffer-file-name)) ;; FIXME: Cover dired buffer in tests.
+              (f-ancestor-of? local (buffer-file-name)))
+          (-contains? modes major-mode)))
+   lsp-docker-compose-registry))
+
+;;;###autoload
 (defun lsp-docker-compose ()
-  (lsp--require-packages)
-  (if lsp-mode
-      (error "docker-compose processing should happen before lsp-mode")
-    (pcase-let ((`(,container ,local ,remote) (lsp-docker-compose-current-container)))
-      (dolist (client (lsp--filter-clients #'lsp--supports-buffer?))
-        (lsp-docker-compose-register client container local remote)))))
+  (unless (lsp-docker-compose-is-registered)
+    (lsp--require-packages)
+    (if lsp-mode
+        (error "docker-compose processing should happen before lsp-mode")
+      (pcase-let ((`(,container ,local ,remote) (lsp-docker-compose-current-container)))
+        (dolist (client (lsp--filter-clients #'lsp--supports-buffer?))
+          (lsp-docker-compose-register client container local remote))))))
 
 (defun lsp-docker-compose-hack-stdio-connection (f &rest args)
   (plist-put
